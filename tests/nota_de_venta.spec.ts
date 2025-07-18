@@ -84,6 +84,7 @@ test('Creacion y verificacion de nueva nota de venta', async ({page}) =>{
     //Obtener el total y validar
     const valorPrecioUnitario = page.locator('//p[@id="total"]');
     const valorTotalLimpiado = await limpiarValorNeto(valorPrecioUnitario);
+    
     //Validar que el valor unitario por la cantidad de productos sea correcta en el total.
     expect(valorUnitario*(parseInt(cantidad,10))).toBe(valorTotalLimpiado);
 
