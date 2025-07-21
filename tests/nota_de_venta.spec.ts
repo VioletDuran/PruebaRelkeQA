@@ -1,21 +1,99 @@
 import { test, expect, Locator } from '@playwright/test';
 
-//test('Login y navegación inicial a Nota de Venta', async ({ page }) => {
- // await page.goto('/');
+async function limpiarValorNeto(valor: Locator): Promise<number> {
+  const rawText = await valor.textContent() || '';
+  const cleanedText = rawText
+    .replace(/\s/g, '')
+    .replace('$', '')
+    .replace(/\./g, '')
+    .replace(',', '.');
 
-  //await page.getByPlaceholder('Correo Electrónico').fill('qa_junior@relke.cl');
-  //await page.getByPlaceholder('Contraseña').fill('Demo123456!');
-  //await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+  const total = parseInt(cleanedText);
+  const totalInt = Math.round(total);
+  return totalInt;
+}
 
-  //await page.click('.navbar-brand');
-  //await page.waitForLoadState('networkidle');
-    
-  //await page.getByRole('link', { name: 'Ventas ' }).click();
-  //await page.getByRole('link', { name: 'Notas de venta' }).click();
-  //await page.waitForSelector('#btn-new-invoice', { timeout: 3000 });
+test('Verificar que no permita realizar una nota de venta sin productos asociados.', async ({page}) => {
+        await page.goto('/');
 
-  //await expect(page.getByText('Mostrar:')).toBeVisible();
-//});
+    //Ingreso e inicion de sesion de la pagina
+    await page.getByPlaceholder('Correo Electrónico').fill('qa_junior@relke.cl');
+    await page.getByPlaceholder('Contraseña').fill('Demo123456!');
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+
+    await page.click('.navbar-brand');
+    await page.waitForLoadState('networkidle');
+      
+    //Ingreso a apartado nueva nota de venta
+    await page.getByRole('link', { name: 'Ventas ' }).click();
+    await page.getByRole('link', { name: 'Notas de venta' }).click();
+    await page.locator('//a[@data-title="Nueva nota de venta"]').click();
+
+    //Espera para que sea visible la pagina solicitada.
+    await page.waitForSelector('//label[contains(text(),"Sucursal")]', { timeout: 5000 });
+
+    //Seleccionar Sucursal
+    await page.locator('//span[@id="select2-sales_note_branch_id-container"]').click();
+    await page.locator('//li[contains(text(),"Casa matriz")]').click();
+
+
+    //Seleccionar boleta electronica en documento tributario
+    await page.locator('//span[@aria-labelledby="select2-sales_note_type_document_sii-container"]').click();
+    await page.locator('//li[contains(text(),"BOLETA ELEC")]').click();
+
+    //Selecionar bodega principal en selector de bodega
+    await page.locator('//span[@aria-labelledby="select2-sales_note_ware_house_id-container"]').click();
+    await page.locator('//li[contains(text(),"Bodega principal")]').click();
+
+    //Selecionar cliente
+    await page.locator('//span[@aria-labelledby="select2-sales_note_customer_id-container"]').click();
+    await page.locator('//input[@class="select2-search__field"]').fill("Diego");
+    await page.waitForSelector('//li[contains(text(),"Diego")]', { timeout: 3000 });
+    await page.locator('//li[contains(text(),"Diego")]').click();
+
+    //Seleccionar moneda
+    await page.locator('//span[@id="select2-sales_note_currency-container"]').click();
+    await page.locator('//li[contains(text(),"Pesos")]').click();
+
+    //Crear nota de venta
+    page.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
+    await page.locator('//button[@value="create"]').click();
+
+   //Validacion de error.
+   const divError = page.locator('//div[@class="alert alert-danger alert-dismissable no-margin no-radius mb-20"]')
+   const msnErrorDebeSeleccionarProducto = page.locator('//li[contains(text(),"Debe seleccionar un producto.")]')
+   await expect(divError).toBeVisible();
+   await expect(msnErrorDebeSeleccionarProducto).toBeVisible();
+
+   //Validar cantidad y precio requeridos mediante border rojo
+   const cantidadObligatorio = page.locator('(//div[@class="field_with_errors"])[1]')
+   const precioObligatorio = page.locator('(//div[@class="field_with_errors"])[2]')
+   await expect(cantidadObligatorio).toBeVisible();
+   await expect(precioObligatorio).toBeVisible();
+})
+
+
+test('Verificacion de logout exitoso', async ({page}) => {
+   await page.goto('/');
+  //Ingreso e inicion de sesion de la pagina
+   await page.getByPlaceholder('Correo Electrónico').fill('qa_junior@relke.cl');
+   await page.getByPlaceholder('Contraseña').fill('Demo123456!');
+   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+   await page.click('.navbar-brand');
+   await page.waitForLoadState('networkidle');
+
+   //Click perfil y logout
+   await page.locator('(//a[@class="dropdown-toggle dropdown-toggle-profile"])[2]').click();
+   await page.locator('//a[contains(.,"Salir")]').click();
+
+   //Validacion de logout exitosamente
+   const inputCorreo = page.locator('//input[@name="user[email]"]')
+   const logoRelBase = page.locator('//img')
+   await expect(inputCorreo).toBeVisible();
+   await expect(logoRelBase).toBeVisible();
+})
 
 
 test('Creacion y verificacion de nueva nota de venta', async ({page}) =>{
@@ -97,17 +175,3 @@ test('Creacion y verificacion de nueva nota de venta', async ({page}) =>{
     const iframeLocator = page.locator('(//iframe)[1]');
     await expect(iframeLocator).toBeVisible();
   })
-
-
-async function limpiarValorNeto(valor: Locator): Promise<number> {
-  const rawText = await valor.textContent() || '';
-  const cleanedText = rawText
-    .replace(/\s/g, '')
-    .replace('$', '')
-    .replace(/\./g, '')
-    .replace(',', '.');
-
-  const total = parseInt(cleanedText);
-  const totalInt = Math.round(total);
-  return totalInt;
-}
